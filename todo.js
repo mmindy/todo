@@ -1,7 +1,9 @@
 var task = [];
-var id = 0;
+// 추가
+var STATE_P = "진행";  
+var STATE_C = "완료";
 
-var printList = function () {
+var render = function () {
 	var $list = $(".list");
 	var html = "";
 	var rowNum = task.length;
@@ -13,86 +15,112 @@ var printList = function () {
 				"<span class='chkbox'><input type='checkbox' class='stateCheck'/></span>"+
 				"<span class='title'>"+task[i].title+"(ID: "+task[i].id+"/"+task[i].state+")"+"</span>"+
 				"<span class='remove'>X</span>"+
-				"</p>";  //state = 0 이 진행중, 1이 완료
+				"</p>";
 
 			$list.append(html);
 		}
-		$list.find("p[data-state='1']").addClass("done");
-		$list.find("p.done .stateCheck").attr("checked", true);
+		$list.find("p[data-state='"+STATE_C+"']").addClass("done");
+		$list.find("p[data-state='"+STATE_C+"'] .stateCheck").attr("checked", true);
 	} else {
 		$(".list").html("<p class='noData'>내역없음!</p>")
 	}
 };
 
-var addTask = function (title) {
-	if ( id !== 0 && task.length > 1) {
-		var lastNum = Number(task.length-1);
-		var lastId = Number(task[lastNum].id);
-		if ( id !== lastNum ) id = lastNum + 1;
-	} else if ( id !== 0 && task.length === 0 ){
-		id = 0;
-	}
-	var taskRow = {
-		id : id,
-		title : title,
-		state : 0
+var addTask = (function () {
+	var id = 0;
+	var taskRow;
+	return function (title) {
+		taskRow = {
+			id : id++,
+			title : title,
+			state : STATE_P
+		};
+		task.push(taskRow);
+		render();
+		$(".form #title").val("");
 	};
-	task.push(taskRow);
-	printList();
-	$(".form #title").val("");
-	id++
-};
+}());
 
 var removeTask = function (id) {
-	var rowNum = task.length;
-	for(var i = 0; i < rowNum; i ++) {
-		if (task[i].id === id) {
-			task.splice(i, 1);
-			printList();
-			return false;
+	var ID = false;
+	for (var i = 0 ; i < task.length ; i++){
+		if( task[i].id === id) {
+			ID = id;
+			break;
 		}
 	}
+	if (ID === false) {
+		warning("removeTask: invalid id - " + id);
+		return;
+	}
+	for(var i = 0; i < task.length; i ++) {
+		if (task[i].id === ID) {
+			task.splice(i, 1);
+			break;
+		}
+	};
+	render();
 };
 
 var changeState = function (id, state) {
-	var changeNum;
-	var rowNum = task.length;
-
-	if (state === 0) {
-		changeNum = 1;
-	} else {
-		changeNum = 0;
-	}
-	for(var i = 0; i < rowNum; i ++) {
-		if (task[i].id === id) {
-			task[i].state = changeNum;
-			printList();
-			return false;
+	var ID = false;
+	var STATE = false;
+	for (var i = 0 ; i < task.length ; i++){
+		if (task[i].id === id){
+			ID = id;
+			break;
 		}
 	}
+	if (ID === false) {
+		warning("changeState - id :" +id+" is invalid.");
+		return;
+	}
+	if (state !== STATE_P && state !== STATE_C){
+		warning("changeState - state :" +state+" is invalid.");
+		return;
+	} else {
+		STATE = state;
+		if (STATE === STATE_P) {
+			STATE = STATE_C;
+		} else {
+			STATE = STATE_P;
+		}
+	}
+	for(var i = 0; i < task.length; i ++) {
+		if (task[i].id === ID) {
+			task[i].state = STATE;
+			break;
+		}
+	};
+
+	render();
 };
 
 var listDisplay = function (state) {
 	var $listElem = $(".list p");
-
 	$listElem.show();
-	if (state === 0) {
-		$listElem.siblings(".done").hide();
-	} else if (state === 1) {
-		$listElem.not(".done").hide();
+	if (state === STATE_P) {
+		$listElem.filter("[data-state='"+STATE_C+"']").hide();
+	} else if (state === STATE_C) {
+		$listElem.filter("[data-state='"+STATE_P+"']").hide();
 	}
 };
 
-printList();
+function warning(text) {
+	var $textArea = $(".toDo #warning");
+	$textArea.text(text);
+}
+
+
+render();
 $(".form .submit").on("click", function(){
 	var title = $(".form").find("#title").val();
 	addTask(title);
 });
 
-$(".toDo").on("click", ".list .chkbox", function(){
-	var $thisRow = $(this).parent("p");
-	var thisID = $thisRow.data("id");
-	var thisState = $thisRow.data("state");
+$(".toDo").on("click", ".list .chkBox , .list .title", function(){
+	var thisID = $(this).parent().data("id");
+	var thisState = $(this).parent().data("state");
 	changeState(thisID, thisState);
 });
 
@@ -102,7 +130,7 @@ $(".toDo").on("click", ".list .remove", function(){
 	removeTask(thisID);
 });
 
-$(".toDo").on("click", ".view li a", function(){
+$(".toDo").on("click", ".view li a", function(event){
 	var thisState = $(this).attr("href");
 	thisState = thisState.substr(1);
 	event.preventDefault();
@@ -112,16 +140,16 @@ $(".toDo").on("click", ".view li a", function(){
 
 	switch (thisState){
 		case "all" :
-				listDisplay(2);
+				listDisplay();
 			break;
 		case "ing" :
-				listDisplay(0);
+				listDisplay(STATE_P);
 			break;
 		case "end" :
-				listDisplay(1);
+				listDisplay(STATE_C);
 			break;
 		default :
-				listDisplay(2);
+				listDisplay();
 			break;
 	}
 
